@@ -50,6 +50,13 @@ body{font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;padding:16p
 .prow{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--ln)}.prow:last-child{border:0}
 .wbar{height:4px;background:var(--ln);border-radius:4px;margin-top:3px;min-width:60px}.wbar i{display:block;height:100%;background:var(--ac);border-radius:4px}
 table{min-width:1020px}tbody tr:hover{background:var(--ac2)}button{border-radius:10px}
+.tabs{display:flex;gap:6px;margin:0 0 14px;border-bottom:1px solid var(--ln)}.tabs button{border:0;border-bottom:3px solid transparent;border-radius:0;background:none;font-weight:600;color:var(--mu);padding:8px 14px}.tabs button.on{color:var(--tx);border-bottom-color:var(--ac)}
+.chipb{border-radius:999px;margin:8px 6px 0 0}.chipb.on{background:var(--ac2);border-color:var(--ac);font-weight:600}.chipb.s{padding:3px 12px;margin:0 6px 0 0}
+.xc{display:flex;gap:12px;align-items:center;background:var(--sf);border-radius:16px;box-shadow:var(--sh);padding:12px;margin-top:10px;cursor:pointer}
+.av{width:42px;height:42px;border-radius:12px;background:var(--ac2);display:grid;place-items:center;font-weight:700;overflow:hidden;flex:none}.av img{width:100%}
+.xm{flex:1;min-width:0}.xm b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.xr{text-align:right}
+.xgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:12px}.xgrid span{display:block;font-size:12px}
+dialog#dex{width:min(640px,96vw)}
 </style></head><body>
 <header>
  <div><h1>Mi cartera</h1><div class="mu" id="last"></div></div>
@@ -59,8 +66,9 @@ table{min-width:1020px}tbody tr:hover{background:var(--ac2)}button{border-radius
   <button data-a="addpos">+ Posición</button><button data-a="cfg">Ajustes</button>
  </div>
 </header>
-<div class="warn">Las alertas solo funcionan con esta pestaña abierta. Los datos y la clave de API se guardan únicamente en este navegador.</div>
-<div id="banners"></div>
+<div id="banners"></div><div class="tabs"><button class="on" data-t="p">Mi portfolio</button><button data-t="e">Explorar activos</button></div>
+<div id="v-port"><div class="warn">Las alertas solo funcionan con esta pestaña abierta. Los datos y la clave de API se guardan únicamente en este navegador.</div>
+
 <div class="cards" id="sum"></div>
 <div class="box"><h2>Rendimiento por plataforma</h2><div id="plat"></div></div>
 <div class="charts" id="charts"></div>
@@ -74,6 +82,13 @@ table{min-width:1020px}tbody tr:hover{background:var(--ac2)}button{border-radius
  <button data-a="demo">Cargar demo</button><button data-a="wipe" class="dn">Borrar todo</button>
  <input type="file" id="file" accept=".json" hidden></div></div>
 
+</div>
+<div id="v-exp" hidden><h2 style="font-size:26px">Explorar activos</h2><p class="mu" id="exinfo"></p>
+ <input id="exq" placeholder="Buscar por nombre o ticker…" style="width:100%"><div id="exf"></div>
+ <div class="bar" style="margin-top:10px"><select id="excat"><option value="">Catálogo ampliado…</option><option value="NASDAQ">Acciones NASDAQ</option><option value="NYSE">Acciones NYSE</option><option value="ETF">ETFs de EE. UU.</option></select><span class="mu" id="excs"></span></div>
+ <div id="exl"></div><div id="exmore" style="text-align:center;margin-top:12px"></div></div>
+<dialog id="dex"><h2 id="xt"></h2><div class="mu" id="xs"></div><div style="margin:10px 0" id="xr"></div><div id="xch"></div><div class="xgrid" id="xst"></div>
+ <div class="bar" style="margin-top:14px"><button class="p" id="xadd">Añadir al portfolio</button><button id="xclose">Cerrar</button></div></dialog>
 <dialog id="dpos"><form method="dialog" id="fpos"><h2 id="tpos">Posición</h2>
  <label>Nombre<input name="name" required></label>
  <div class="row"><label>Ticker / id<input name="sym" placeholder="AAPL · IWDA · solana"></label>
@@ -93,8 +108,10 @@ table{min-width:1020px}tbody tr:hover{background:var(--ac2)}button{border-radius
  <label>Nota<input name="note"></label>
  <div class="bar" style="margin-top:10px"><button class="p" value="ok">Crear alerta</button><button value="cancel" formnovalidate>Cancelar</button></div></form></dialog>
 <dialog id="dcfg"><form method="dialog" id="fcfg"><h2>Ajustes</h2>
- <label>Clave de Twelve Data (acciones y ETFs)<input name="key" autocomplete="off" placeholder="Pega tu clave"></label>
- <p class="mu">Se guarda en el almacenamiento local de este navegador, sin cifrar. No la uses en ordenadores compartidos.</p>
+ <label>Clave de Twelve Data (acciones y ETFs)<input name="key" type="password" autocomplete="off" placeholder="Pega tu clave"></label>
+ <label><input type="checkbox" style="width:auto" onchange="this.form.elements.key.type=this.checked?'text':'password'"> Mostrar clave</label>
+ <p class="mu">Se guarda solo en este navegador, sin cifrar, y no se incluye en el JSON exportado ni se sube a GitHub. Otros usuarios de la web no pueden verla. No la uses en ordenadores compartidos.</p>
+ <button type="button" class="s dn" data-a="delkey">Borrar clave de este navegador</button>
  <label><input type="checkbox" name="sound" style="width:auto"> Sonido al disparar una alerta</label>
  <div class="bar" style="margin-top:10px"><button class="p" value="ok">Guardar</button><button value="cancel" formnovalidate>Cancelar</button></div></form></dialog>
 
@@ -113,8 +130,9 @@ let S={pos:[],alerts:[],hist:[],cfg:{key:"",min:0,sound:true},quotes:{},fx:{},la
 let V={sort:"value",dir:-1,fp:"",ft:""},busy=false,timer=null,editId=null,alertPid=null;
 
 /* ---------- Persistencia ---------- */
-function load(){try{const r=localStorage.getItem(LS);if(r)S={...S,...JSON.parse(r)}}catch(e){console.warn("No se pudo leer",e)}}
-function save(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){toast("No se pudo guardar en el navegador")}}
+const LK="cartera.key"; // la clave de API vive aparte: no se exporta, no se borra al importar
+function load(){try{const r=localStorage.getItem(LS);if(r)S={...S,...JSON.parse(r)};const k=localStorage.getItem(LK);if(k)S.cfg.key=k}catch(e){console.warn("No se pudo leer",e)}}
+function save(){try{localStorage.setItem(LS,JSON.stringify({...S,cfg:{...S.cfg,key:""}}));if(S.cfg.key)localStorage.setItem(LK,S.cfg.key)}catch(e){toast("No se pudo guardar en el navegador")}}
 function toast(m){const d=document.createElement("div");d.className="warn";d.textContent=m;$("#banners").prepend(d);setTimeout(()=>d.remove(),6000)}
 
 /* ---------- Proveedores de cotización (intercambiables) ---------- */
@@ -237,23 +255,77 @@ function demo(){
 document.addEventListener("click",e=>{
  const b=e.target.closest("[data-a],[data-s]");if(!b)return;const id=b.dataset.id;
  if(b.dataset.s){V.dir=V.sort===b.dataset.s?-V.dir:-1;V.sort=b.dataset.s;return render()}
- const A={refresh,addpos:()=>openPos(null),cfg(){const f=$("#fcfg").elements;f.key.value=S.cfg.key;f.sound.checked=S.cfg.sound;$("#dcfg").showModal()},
+ const A={refresh,addpos:()=>openPos(null),cfg(){const f=$("#fcfg").elements;f.key.value=S.cfg.key;f.key.type="password";$("#fcfg").querySelector("input:not([name])").checked=false;f.sound.checked=S.cfg.sound;$("#dcfg").showModal()},
+  delkey(){if(confirm("¿Borrar la clave de Twelve Data de este navegador?")){try{localStorage.removeItem(LK)}catch(e){}S.cfg.key="";$("#fcfg").elements.key.value="";save();toast("Clave borrada de este navegador")}},
   edit:()=>openPos(id),del(){if(confirm("¿Borrar esta posición y sus alertas?")){S.pos=S.pos.filter(p=>p.id!==id);S.alerts=S.alerts.filter(a=>a.pid!==id);delete S.quotes[id];save();render()}},
   alert(){alertPid=id;$("#aname").textContent=S.pos.find(p=>p.id===id).name;$("#fal").reset();$("#dal").showModal()},
   apause(){S.alerts.find(a=>a.id===id).status="paused";save();render()},arearm(){S.alerts.find(a=>a.id===id).status="active";save();render()},
   adel(){S.alerts=S.alerts.filter(a=>a.id!==id);save();render()},
-  exp:()=>download("cartera-"+new Date().toISOString().slice(0,10)+".json",JSON.stringify(S,null,1),"application/json"),
+  exp:()=>download("cartera-"+new Date().toISOString().slice(0,10)+".json",JSON.stringify({...S,cfg:{...S.cfg,key:""}},null,1),"application/json"),
   imp:()=>$("#file").click(),demo,
   csv(){const h=["Nombre","Ticker","Tipo","Plataforma","Cantidad","Precio medio","Divisa","Precio actual","Valor EUR","P/L EUR","P/L %"];
    const q=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
    download("posiciones.csv","\ufeff"+[h,...rows().map(r=>[r.p.name,r.p.sym,TIPOS[r.p.type],r.p.plat,r.p.qty,r.p.avg,r.p.cur,r.price,r.value,r.pl,r.plp].map(v=>q(typeof v==="number"?String(v).replace(".",","):v)))].map(x=>x.join(";")).join("\n"),"text/csv")},
-  wipe(){if(confirm("Se borrarán todas las posiciones, alertas y ajustes de este navegador. ¿Seguro?")){localStorage.removeItem(LS);location.reload()}}};
+  wipe(){if(confirm("Se borrarán todas las posiciones y alertas de este navegador. La clave de API se conserva (puedes borrarla en Ajustes). ¿Seguro?")){localStorage.removeItem(LS);location.reload()}}};
  A[b.dataset.a]?.()});
 $("#file").onchange=async e=>{try{const d=JSON.parse(await e.target.files[0].text());if(!Array.isArray(d.pos))throw 0;
- if(confirm("Esto reemplaza tus datos actuales. ¿Continuar?")){S={...S,...d};save();render()}}catch{toast("Archivo no válido")}e.target.value=""};
+ if(confirm("Esto reemplaza tus datos actuales. ¿Continuar?")){const k=S.cfg.key;S={...S,...d};S.cfg={min:0,sound:true,...S.cfg,key:k};save();render();schedule()}}catch{toast("Archivo no válido")}e.target.value=""};
 $("#fp").onchange=e=>{V.fp=e.target.value;render()};$("#ft").onchange=e=>{V.ft=e.target.value;render()};
 $("#auto").onchange=e=>{S.cfg.min=+e.target.value;save();schedule()};
 function schedule(){clearInterval(timer);if(S.cfg.min>0)timer=setInterval(refresh,S.cfg.min*6e4)}
 
+/* ---------- Explorar activos ---------- */
+const CAT=[["AAPL","Apple","accion","Ordenadores y redes"],["MSFT","Microsoft","accion","Software"],["NVDA","NVIDIA","accion","Semiconductores"],["TSLA","Tesla","accion","Automoción"],["AMZN","Amazon","accion","Comercio electrónico"],["GOOGL","Alphabet","accion","Internet"],["META","Meta Platforms","accion","Redes sociales"],["NFLX","Netflix","accion","Streaming"],["KO","Coca-Cola","accion","Bebidas"],["DIS","Disney","accion","Entretenimiento"],["JPM","JPMorgan Chase","accion","Banca"],["V","Visa","accion","Pagos"],["SPY","SPDR S&P 500 ETF","etf","Índice S&P 500"],["QQQ","Invesco QQQ","etf","Índice Nasdaq 100"],["VOO","Vanguard S&P 500","etf","Índice S&P 500"],["VT","Vanguard Total World","etf","Renta variable global"],["VWO","Vanguard Emerging Markets","etf","Mercados emergentes"],["GLD","SPDR Gold Shares","etf","Oro"]].map(([sym,name,type,sub])=>({sym,name,type,sub}));
+"AMD|Advanced Micro Devices|a|Semiconductores;INTC|Intel|a|Semiconductores;AVGO|Broadcom|a|Semiconductores;QCOM|Qualcomm|a|Semiconductores;TXN|Texas Instruments|a|Semiconductores;TSM|TSMC|a|Semiconductores;ASML|ASML|a|Semiconductores;ORCL|Oracle|a|Software;CRM|Salesforce|a|Software;ADBE|Adobe|a|Software;IBM|IBM|a|Tecnología;CSCO|Cisco|a|Redes;PLTR|Palantir|a|Software;SNOW|Snowflake|a|Software;SHOP|Shopify|a|Comercio electrónico;SPOT|Spotify|a|Streaming;UBER|Uber|a|Transporte;ABNB|Airbnb|a|Viajes;PYPL|PayPal|a|Pagos;MA|Mastercard|a|Pagos;COIN|Coinbase|a|Cripto y finanzas;BABA|Alibaba|a|Comercio electrónico;SONY|Sony|a|Electrónica;TM|Toyota|a|Automoción;F|Ford|a|Automoción;GM|General Motors|a|Automoción;PEP|PepsiCo|a|Bebidas;MCD|McDonald's|a|Restauración;SBUX|Starbucks|a|Restauración;NKE|Nike|a|Moda deportiva;WMT|Walmart|a|Distribución;COST|Costco|a|Distribución;HD|Home Depot|a|Bricolaje;PG|Procter & Gamble|a|Consumo;JNJ|Johnson & Johnson|a|Salud;PFE|Pfizer|a|Farma;MRK|Merck|a|Farma;LLY|Eli Lilly|a|Farma;NVO|Novo Nordisk|a|Farma;UNH|UnitedHealth|a|Salud;ABBV|AbbVie|a|Farma;XOM|ExxonMobil|a|Energía;CVX|Chevron|a|Energía;BA|Boeing|a|Aeroespacial;CAT|Caterpillar|a|Maquinaria;GE|General Electric|a|Industria;MMM|3M|a|Industria;BAC|Bank of America|a|Banca;WFC|Wells Fargo|a|Banca;GS|Goldman Sachs|a|Banca;MS|Morgan Stanley|a|Banca;AXP|American Express|a|Pagos;BRK.B|Berkshire Hathaway|a|Holding;T|AT&T|a|Telecomunicaciones;VZ|Verizon|a|Telecomunicaciones;CMCSA|Comcast|a|Medios;SAP|SAP|a|Software;IVV|iShares Core S&P 500|e|Índice S&P 500;VTI|Vanguard Total Stock Market|e|Bolsa EE. UU.;VEA|Vanguard Developed Markets|e|Mercados desarrollados;VXUS|Vanguard Total International|e|Internacional;VIG|Vanguard Dividend Appreciation|e|Dividendos;SCHD|Schwab US Dividend Equity|e|Dividendos;IWM|iShares Russell 2000|e|Pequeña capitalización;DIA|SPDR Dow Jones|e|Índice Dow Jones;VGT|Vanguard Information Technology|e|Tecnología;VUG|Vanguard Growth|e|Crecimiento;VTV|Vanguard Value|e|Valor;XLK|Technology Select Sector|e|Tecnología;XLF|Financial Select Sector|e|Financiero;XLE|Energy Select Sector|e|Energía;XLV|Health Care Select Sector|e|Salud;XLY|Consumer Discretionary Select|e|Consumo;XLP|Consumer Staples Select|e|Consumo básico;SOXX|iShares Semiconductor|e|Semiconductores;SMH|VanEck Semiconductor|e|Semiconductores;ARKK|ARK Innovation|e|Innovación;EEM|iShares MSCI Emerging Markets|e|Mercados emergentes;IEMG|iShares Core Emerging Markets|e|Mercados emergentes;EFA|iShares MSCI EAFE|e|Mercados desarrollados;ACWI|iShares MSCI ACWI|e|Renta variable global;URTH|iShares MSCI World|e|Renta variable global;MCHI|iShares MSCI China|e|China;EWJ|iShares MSCI Japan|e|Japón;EWG|iShares MSCI Germany|e|Alemania;INDA|iShares MSCI India|e|India;TLT|iShares 20+ Year Treasury|e|Bonos largo plazo;BND|Vanguard Total Bond Market|e|Bonos;AGG|iShares Core US Aggregate Bond|e|Bonos;LQD|iShares Investment Grade Corporate|e|Bonos corporativos;HYG|iShares High Yield Corporate|e|Bonos high yield;SLV|iShares Silver Trust|e|Plata;USO|United States Oil Fund|e|Petróleo;VNQ|Vanguard Real Estate|e|Inmobiliario;IBIT|iShares Bitcoin Trust|e|Bitcoin".split(";").forEach(r=>{const[x,n,t,s]=r.split("|");if(!CAT.some(c=>c.sym===x))CAT.push({sym:x,name:n,type:t==="e"?"etf":"accion",sub:s})});
+const TYP={accion:"Acción",etf:"ETF",cripto:"Cripto"},RNG=[["1S",7,"1h",40],["1M",30,"1day",30],["3M",90,"1day",90],["1A",365,"1week",52]],CG="https://api.coingecko.com/api/v3/";
+let X={n:60,cat:{},f:"",q:"",crypto:[],res:null,sel:null,rng:1,L:[],pts:null};
+const cgItem=c=>({id:c.id,sym:c.symbol.toUpperCase(),name:c.name,type:"cripto",img:c.image,sub:c.symbol.toUpperCase(),price:c.current_price,cur:"EUR",chg:c.price_change_percentage_24h,c7:c.price_change_percentage_7d_in_currency,c30:c.price_change_percentage_30d_in_currency,mc:c.market_cap,vol:c.total_volume,ath:c.ath,hi:c.high_24h,lo:c.low_24h});
+function tab(t){$("#v-port").hidden=t!=="p";$("#v-exp").hidden=t!=="e";document.querySelectorAll(".tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));if(t==="e"){if(!X.crypto.length)loadCrypto();renderEx()}}
+async function loadCrypto(){try{X.crypto=(await getJSON(CG+"coins/markets?vs_currency=eur&order=market_cap_desc&per_page=25&price_change_percentage=24h,7d,30d")).map(cgItem)}catch(e){toast("No se pudieron cargar las criptomonedas (límite de CoinGecko). Reintenta en un minuto.")}renderEx()}
+function listEx(){const q=X.q.toLowerCase(),seen=new Set([...CAT,...X.crypto].map(a=>a.type+a.sym)),base=[...CAT,...X.crypto,...Object.values(X.cat).flat().filter(a=>!seen.has(a.type+a.sym))];let L=q?base.filter(a=>(a.name+" "+a.sym).toLowerCase().includes(q)):base;
+ if(q&&X.res)L=[...L,...X.res.filter(r=>!L.some(a=>a.sym===r.sym&&a.type===r.type))];return L.filter(a=>!X.f||a.type===X.f)}
+function renderEx(){
+ $("#exf").innerHTML=[["","Todos"],["accion","Acciones"],["etf","ETFs"],["cripto","Cripto"]].map(([k,l])=>`<button class="chipb ${X.f===k?"on":""}" data-xf="${k}">${l}</button>`).join("");
+ const L=X.L=listEx();$("#exinfo").textContent=L.length+" activos"+(S.cfg.key?"":" · pega tu clave de Twelve Data en Ajustes para buscar en toda la bolsa y ver gráficas de acciones y ETFs");
+ $("#exmore").innerHTML=L.length>X.n?`<button data-xmore>Ver más (${L.length-X.n} restantes)</button>`:"";
+ $("#exl").innerHTML=L.slice(0,X.n).map((a,i)=>`<div class="xc" data-xi="${i}"><div class="av">${a.img?`<img src="${esc(a.img)}" alt="">`:esc(a.sym.slice(0,2))}</div><div class="xm"><b>${esc(a.name)}</b><div class="mu">${esc(a.sub||a.sym)}</div></div><div class="xr"><span class="chip">${TYP[a.type]||"Otro"}</span>${a.price?`<div class="n">${num(a.price,2)} ${a.cur}</div><div class="n ${cls(a.chg)}">${pct(a.chg)}</div>`:`<div class="mu">${esc(a.sym)}</div>`}</div></div>`).join("")||"<div class='mu' style='padding:16px 0'>Sin resultados</div>"}
+async function searchEx(){const q=X.q,out=[],tk=encodeURIComponent(S.cfg.key||""),jobs=[getJSON(CG+"search?query="+encodeURIComponent(q)).then(d=>d.coins.slice(0,8).forEach(c=>out.push({id:c.id,sym:c.symbol.toUpperCase(),name:c.name,type:"cripto",img:c.thumb,sub:c.symbol.toUpperCase()}))).catch(()=>{})];
+ if(S.cfg.key)jobs.push(getJSON(`https://api.twelvedata.com/symbol_search?symbol=${encodeURIComponent(q)}&outputsize=12&apikey=${tk}`).then(d=>(d.data||[]).forEach(r=>out.push({sym:r.symbol,name:r.instrument_name,type:/etf/i.test(r.instrument_type)?"etf":/stock/i.test(r.instrument_type)?"accion":"otro",sub:r.symbol+" · "+r.exchange,cur:r.currency}))).catch(()=>{}));
+ await Promise.all(jobs);if(q===X.q){X.res=out;renderEx()}}
+async function openEx(a){X.sel=a;X.rng=1;X.pts=null;$("#xt").textContent=a.name;$("#xs").textContent=(TYP[a.type]||"Otro")+" · "+a.sym;$("#xst").innerHTML="";$("#dex").showModal();loadStats(a);loadChart()}
+async function loadStats(a){const el=$("#xst"),st=(l,v)=>`<div><span class="mu">${l}</span><b class="n">${v}</b></div>`,m=v=>isFinite(v)?num(v,0):"—";
+ try{if(a.type==="cripto"){if(a.mc===undefined){const d=(await getJSON(CG+"coins/markets?vs_currency=eur&price_change_percentage=24h,7d,30d&ids="+encodeURIComponent(a.id)))[0];if(d)Object.assign(a,cgItem(d))}
+  el.innerHTML=st("Precio",num(a.price,2)+" €")+st("24 h",pct(a.chg))+st("7 días",pct(a.c7))+st("30 días",pct(a.c30))+st("Máx. 24 h",num(a.hi,2))+st("Mín. 24 h",num(a.lo,2))+st("Cap. mercado",m(a.mc)+" €")+st("Volumen 24 h",m(a.vol)+" €")+st("Máx. histórico",num(a.ath,2)+" €")}
+ else if(S.cfg.key){const d=await getJSON(`https://api.twelvedata.com/quote?symbol=${encodeURIComponent(a.sym)}&apikey=${encodeURIComponent(S.cfg.key)}`);if(d.status==="error")return;a.price=parseFloat(d.close);a.cur=d.currency;const w=d.fifty_two_week||{};
+  el.innerHTML=st("Precio",num(a.price,2)+" "+d.currency)+st("Variación día",pct(parseFloat(d.percent_change)))+st("Apertura",num(+d.open,2))+st("Máx. día",num(+d.high,2))+st("Mín. día",num(+d.low,2))+st("Volumen",m(+d.volume))+st("Máx. 52 sem.",num(+w.high,2))+st("Mín. 52 sem.",num(+w.low,2))}}catch(e){}}
+async function loadChart(){const a=X.sel,r=RNG[X.rng],box=$("#xch");
+ $("#xr").innerHTML=RNG.map((g,i)=>`<button class="chipb s ${i===X.rng?"on":""}" data-xr="${i}">${g[0]}</button>`).join("");
+ box.innerHTML="<div class='mu' style='padding:40px 0'>Cargando gráfica…</div>";
+ try{let p;if(a.type==="cripto")p=(await getJSON(`${CG}coins/${encodeURIComponent(a.id)}/market_chart?vs_currency=eur&days=${r[1]}`)).prices;
+  else{if(!S.cfg.key)throw new Error("Pega tu clave de Twelve Data en Ajustes para ver gráficas de acciones y ETFs.");
+   const d=await getJSON(`https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(a.sym)}&interval=${r[2]}&outputsize=${r[3]}&apikey=${encodeURIComponent(S.cfg.key)}`);
+   if(d.status==="error")throw new Error(d.message);p=d.values.map(v=>[new Date(v.datetime.replace(" ","T")).getTime(),parseFloat(v.close)]).reverse()}
+  if(a!==X.sel)return;box.innerHTML=chart(p)}catch(e){box.innerHTML=`<div class="dn" style="padding:20px 0">${esc(e.message)}</div>`}}
+function chart(p){X.pts=p;const W=600,H=200,v=p.map(q=>q[1]),mn=Math.min(...v),mx=Math.max(...v),last=v[v.length-1],up=last>=v[0],c=up?"var(--up)":"var(--dn)",
+ y=t=>H-8-(t-mn)/(mx-mn||1)*(H-24),d=p.map((q,i)=>(i?"L":"M")+(i/(p.length-1)*W).toFixed(1)+" "+y(q[1]).toFixed(1)).join("");
+ return`<div class="n" id="xtip" style="min-height:24px;font-weight:600">${num(last,2)} <span class="${up?"up":"dn"}">${pct((last/v[0]-1)*100)}</span></div><svg id="xsvg" viewBox="0 0 ${W} ${H}" width="100%" style="touch-action:none"><path d="${d}L${W} ${H}L0 ${H}Z" fill="${c}" opacity=".12"/><path d="${d}" fill="none" stroke="${c}" stroke-width="2"/><line id="xln" y1="0" y2="${H}" stroke="var(--mu)" opacity="0"/></svg><div class="mu n" style="display:flex;justify-content:space-between"><span>Mín ${num(mn,2)}</span><span>Máx ${num(mx,2)}</span></div>`}
+document.addEventListener("pointermove",e=>{const s=e.target.closest&&e.target.closest("#xsvg");if(!s||!X.pts)return;const r=s.getBoundingClientRect(),n=X.pts.length-1,i=Math.max(0,Math.min(n,Math.round((e.clientX-r.left)/r.width*n))),q=X.pts[i],l=$("#xln");
+ $("#xtip").textContent=new Date(q[0]).toLocaleDateString("es-ES")+" · "+num(q[1],2)+" "+(X.sel.cur||"");l.setAttribute("x1",i/n*600);l.setAttribute("x2",i/n*600);l.setAttribute("opacity",".6")});
+document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>tab(b.dataset.t));
+async function loadCat(k){const s=$("#excs");if(!k){s.textContent="";return}
+ if(!S.cfg.key){s.textContent="Necesitas la clave de Twelve Data (Ajustes).";return}
+ if(!X.cat[k]){s.textContent="Cargando catálogo…";
+  try{const u=k==="ETF"?"etfs?country=United%20States":"stocks?exchange="+k,d=await getJSON(`https://api.twelvedata.com/${u}&apikey=${encodeURIComponent(S.cfg.key)}`);
+   if(d.status==="error")throw new Error(d.message);
+   X.cat[k]=(d.data||[]).filter(r=>r.symbol&&r.name).map(r=>({sym:r.symbol,name:r.name,type:k==="ETF"?"etf":"accion",sub:r.symbol+" · "+(r.exchange||k),cur:r.currency})).sort((a,b)=>a.name.localeCompare(b.name))}
+  catch(e){s.textContent="No se pudo cargar: "+e.message;return}}
+ s.textContent=X.cat[k].length+" activos cargados";X.n=60;renderEx()}
+$("#excat").onchange=e=>loadCat(e.target.value);
+$("#exq").oninput=e=>{X.q=e.target.value.trim();X.res=null;X.n=60;renderEx();clearTimeout(X.t);if(X.q.length>1)X.t=setTimeout(searchEx,450)};
+$("#v-exp").addEventListener("click",e=>{const f=e.target.closest("[data-xf]"),c=e.target.closest("[data-xi]");if(f){X.f=f.dataset.xf;X.n=60;renderEx()}else if(c)openEx(X.L[+c.dataset.xi]);else if(e.target.closest("[data-xmore]")){X.n+=60;renderEx()}});
+$("#dex").addEventListener("click",e=>{const r=e.target.closest("[data-xr]");if(r){X.rng=+r.dataset.xr;loadChart()}});
+$("#xclose").onclick=()=>$("#dex").close();
+$("#xadd").onclick=()=>{const a=X.sel;$("#dex").close();tab("p");openPos(null);const f=$("#fpos").elements;f.name.value=a.name;f.sym.value=a.type==="cripto"?a.id:a.sym;f.type.value=a.type;
+ f.cur.value=a.type==="cripto"?"EUR":["EUR","USD","GBP","CHF"].includes(a.cur)?a.cur:"EUR";if(a.price)f.avg.value=a.price;$("#epos").textContent="Indica plataforma, cantidad y tu precio medio de compra real (he puesto el precio actual como referencia)."};
 load();render();schedule();if(S.pos.length)refresh();
 </script></body></html>
