@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mi cartera</title>
+<style>
+:root{--bg:#f3f4f1;--sf:#fff;--tx:#1b2220;--mu:#68736f;--ln:#dde1dc;--ac:#0f5c4d;--ac2:#e6efec;--up:#12803c;--dn:#c0392b;--wr:#a86a0c;color-scheme:light}
+@media(prefers-color-scheme:dark){:root{--bg:#111514;--sf:#1a2120;--tx:#e8ece9;--mu:#8e9a95;--ln:#2a3331;--ac:#5fc4a8;--ac2:#1e2a27;--up:#4cc27a;--dn:#ef7a6c;--wr:#e0a84a;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;padding:12px;max-width:1100px;margin-inline:auto}
+h1{font:600 22px Georgia,serif;margin:0}h2{font:600 16px Georgia,serif;margin:0 0 10px}
+.n{font-variant-numeric:tabular-nums}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button,select,input,textarea{font:inherit;color:inherit;background:var(--sf);border:1px solid var(--ln);border-radius:6px;padding:7px 10px}
+button{cursor:pointer}button.p{background:var(--ac);color:var(--bg);border-color:var(--ac);font-weight:600}
+button.s{padding:3px 8px;font-size:13px}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--ac);outline-offset:1px}
+.mu{color:var(--mu);font-size:13px}.up{color:var(--up)}.dn{color:var(--dn)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:12px}
+.card,.box{background:var(--sf);border:1px solid var(--ln);border-radius:8px;padding:12px}
+.card b{display:block;font-size:20px;font-weight:600}
+.box{margin-bottom:12px}
+.warn{background:var(--ac2);border-left:4px solid var(--wr);padding:8px 12px;border-radius:6px;margin-bottom:12px;font-size:14px}
+.alertb{border-left-color:var(--up);font-weight:600;display:flex;justify-content:space-between;gap:8px}
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-bottom:12px}
+.leg{font-size:13px;margin-top:6px}.leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px}
+.leg div{display:flex;justify-content:space-between}
+.tw{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:760px}
+th,td{padding:8px 6px;border-bottom:1px solid var(--ln);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}th{font-weight:600;font-size:13px;cursor:pointer;color:var(--mu)}
+.chip{font-size:12px;padding:2px 7px;border-radius:10px;background:var(--ac2)}
+dialog{background:var(--sf);color:var(--tx);border:1px solid var(--ln);border-radius:10px;width:min(460px,94vw)}
+dialog::backdrop{background:#0008}
+label{display:block;font-size:13px;color:var(--mu);margin-top:8px}
+dialog input,dialog select,dialog textarea{width:100%}
+.row{display:flex;gap:8px}.row>*{flex:1}
+</style></head><body>
+<header>
+ <div><h1>Mi cartera</h1><div class="mu" id="last"></div></div>
+ <div class="bar">
+  <button class="p" data-a="refresh" id="bref">Actualizar</button>
+  <select id="auto" title="Actualización automática"><option value="0">Auto: no</option><option value="1">Cada 1 min</option><option value="5">Cada 5 min</option><option value="15">Cada 15 min</option></select>
+  <button data-a="addpos">+ Posición</button><button data-a="cfg">Ajustes</button>
+ </div>
+</header>
+<div class="warn">Las alertas solo funcionan con esta pestaña abierta. Los datos y la clave de API se guardan únicamente en este navegador.</div>
+<div id="banners"></div>
+<div class="cards" id="sum"></div>
+<div class="charts" id="charts"></div>
+<div class="box"><div class="bar" style="justify-content:space-between;margin-bottom:8px"><h2 style="margin:0">Posiciones</h2>
+ <div class="bar"><select id="fp"></select><select id="ft"></select></div></div>
+ <div class="tw"><table id="tbl"></table></div><div class="mu" id="empty"></div></div>
+<div class="box"><h2>Alertas de precio</h2><div id="alerts"></div></div>
+<div class="box"><h2>Historial de alertas</h2><div id="hist" class="mu"></div></div>
+<div class="box"><h2>Datos</h2><div class="bar">
+ <button data-a="exp">Exportar JSON</button><button data-a="imp">Importar JSON</button><button data-a="csv">Exportar CSV</button>
+ <button data-a="demo">Cargar demo</button><button data-a="wipe" class="dn">Borrar todo</button>
+ <input type="file" id="file" accept=".json" hidden></div></div>
+
+<dialog id="dpos"><form method="dialog" id="fpos"><h2 id="tpos">Posición</h2>
+ <label>Nombre<input name="name" required></label>
+ <div class="row"><label>Ticker / id<input name="sym" placeholder="AAPL · IWDA · solana"></label>
+ <label>Tipo<select name="type"><option value="accion">Acción</option><option value="etf">ETF</option><option value="fondo">Fondo</option><option value="cripto">Cripto</option><option value="deposito">Depósito</option><option value="otro">Otro</option></select></label></div>
+ <label>Plataforma<input name="plat" list="plats" required placeholder="Revolut, Bankinter, MyInvestor, Binance…"></label><datalist id="plats"></datalist>
+ <div class="row"><label>Cantidad<input name="qty" type="number" step="any" min="0" required></label>
+ <label>Precio medio compra<input name="avg" type="number" step="any" min="0" required></label>
+ <label>Divisa<select name="cur"><option>EUR</option><option>USD</option><option>GBP</option><option>CHF</option></select></label></div>
+ <label><input type="checkbox" name="manual" style="width:auto"> Precio manual (sin cotización automática)</label>
+ <label>Precio actual manual (por unidad)<input name="mprice" type="number" step="any" min="0"></label>
+ <label>Notas<textarea name="notes" rows="2"></textarea></label>
+ <p class="dn" id="epos"></p>
+ <div class="bar" style="margin-top:10px"><button class="p" value="ok">Guardar</button><button value="cancel" formnovalidate>Cancelar</button></div></form></dialog>
+<dialog id="dal"><form method="dialog" id="fal"><h2>Nueva alerta</h2><div id="aname" class="mu"></div>
+ <label>Tipo<select name="kind"><option value="buy">Compra: avisar si precio ≤ objetivo</option><option value="sell">Venta: avisar si precio ≥ objetivo</option></select></label>
+ <label>Precio objetivo (en la divisa de cotización)<input name="target" type="number" step="any" min="0" required></label>
+ <label>Nota<input name="note"></label>
+ <div class="bar" style="margin-top:10px"><button class="p" value="ok">Crear alerta</button><button value="cancel" formnovalidate>Cancelar</button></div></form></dialog>
+<dialog id="dcfg"><form method="dialog" id="fcfg"><h2>Ajustes</h2>
+ <label>Clave de Twelve Data (acciones y ETFs)<input name="key" autocomplete="off" placeholder="Pega tu clave"></label>
+ <p class="mu">Se guarda en el almacenamiento local de este navegador, sin cifrar. No la uses en ordenadores compartidos.</p>
+ <label><input type="checkbox" name="sound" style="width:auto"> Sonido al disparar una alerta</label>
+ <div class="bar" style="margin-top:10px"><button class="p" value="ok">Guardar</button><button value="cancel" formnovalidate>Cancelar</button></div></form></dialog>
+
+<script>
+"use strict";
+const LS="cartera.v1",$=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const eur=n=>isFinite(n)?n.toLocaleString("es-ES",{style:"currency",currency:"EUR"}):"—";
+const num=(n,d=4)=>isFinite(n)?n.toLocaleString("es-ES",{maximumFractionDigits:d}):"—";
+const pct=n=>isFinite(n)?(n>0?"+":"")+n.toLocaleString("es-ES",{maximumFractionDigits:2})+" %":"—";
+const cls=n=>n>0?"up":n<0?"dn":"";
+const uid=()=>Math.random().toString(36).slice(2,10);
+const TIPOS={accion:"Acción",etf:"ETF",fondo:"Fondo",cripto:"Cripto",deposito:"Depósito",otro:"Otro"};
+const COL=["#0f8b6d","#d98e04","#3b6fb6","#c0504d","#7a5aa6","#4a9aa8","#8a8f3c","#b5658a"];
+let S={pos:[],alerts:[],hist:[],cfg:{key:"",min:0,sound:true},quotes:{},fx:{},last:null};
+let V={sort:"value",dir:-1,fp:"",ft:""},busy=false,timer=null,editId=null,alertPid=null;
+
+/* ---------- Persistencia ---------- */
+function load(){try{const r=localStorage.getItem(LS);if(r)S={...S,...JSON.parse(r)}}catch(e){console.warn("No se pudo leer",e)}}
+function save(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){toast("No se pudo guardar en el navegador")}}
+function toast(m){const d=document.createElement("div");d.className="warn";d.textContent=m;$("#banners").prepend(d);setTimeout(()=>d.remove(),6000)}
+
+/* ---------- Proveedores de cotización (intercambiables) ---------- */
+async function getJSON(u){const r=await fetch(u);if(!r.ok)throw new Error("HTTP "+r.status);return r.json()}
+const PROV={
+ cripto:{async fetch(list){ // CoinGecko: el ticker es el id (bitcoin, solana…)
+  const ids=[...new Set(list.map(p=>p.sym.toLowerCase()))].join(",");
+  const d=await getJSON(`https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(ids)}&vs_currencies=eur&include_24hr_change=true`);
+  const o={};list.forEach(p=>{const x=d[p.sym.toLowerCase()];o[p.id]=x?{price:x.eur,cur:"EUR",chg:x.eur_24h_change}:{err:"Id no encontrado en CoinGecko"}});return o}},
+ bolsa:{async fetch(list){ // Twelve Data: requiere clave
+  if(!S.cfg.key)throw new Error("Falta la clave de Twelve Data (Ajustes)");
+  const syms=[...new Set(list.map(p=>p.sym.toUpperCase()))];
+  const d=await getJSON(`https://api.twelvedata.com/quote?symbol=${encodeURIComponent(syms.join(","))}&apikey=${encodeURIComponent(S.cfg.key)}`);
+  if(d.status==="error"&&syms.length>1)throw new Error(d.message||"Error de Twelve Data");
+  const map=syms.length===1?{[syms[0]]:d}:d,o={};
+  list.forEach(p=>{const x=map[p.sym.toUpperCase()];
+   o[p.id]=x&&x.status!=="error"&&x.close?{price:parseFloat(x.close),cur:x.currency||p.cur,chg:parseFloat(x.percent_change)}:{err:(x&&x.message)||"Sin datos"}});return o}}
+};
+const provOf=p=>p.manual?null:p.type==="cripto"?"cripto":"bolsa";
+async function fxRate(cur){ // Frankfurter, caché 6 h
+ if(cur==="EUR")return 1;const c=S.fx[cur];if(c&&Date.now()-c.ts<216e5)return c.r;
+ const d=await getJSON(`https://api.frankfurter.app/latest?from=${cur}&to=EUR`);S.fx[cur]={r:d.rates.EUR,ts:Date.now()};return d.rates.EUR}
+
+async function refresh(){
+ if(busy)return;busy=true;$("#bref").textContent="Actualizando…";
+ const groups={};S.pos.forEach(p=>{const k=provOf(p);if(k)(groups[k]=groups[k]||[]).push(p)});
+ for(const k in groups){try{Object.assign(S.quotes,Object.fromEntries(Object.entries(await PROV[k].fetch(groups[k])).map(([id,q])=>[id,{...q,ts:Date.now()}])))}
+  catch(e){groups[k].forEach(p=>S.quotes[p.id]={err:e.message,ts:Date.now(),price:S.quotes[p.id]?.price,cur:S.quotes[p.id]?.cur})}}
+ const curs=new Set(S.pos.flatMap(p=>[p.cur,S.quotes[p.id]?.cur]).filter(Boolean));
+ for(const c of curs){try{await fxRate(c)}catch(e){toast("Sin tipo de cambio para "+c)}}
+ S.last=Date.now();busy=false;$("#bref").textContent="Actualizar";evalAlerts();save();render()}
+
+/* ---------- Cálculos ---------- */
+function calc(p){
+ const q=p.manual?{price:p.mprice,cur:p.cur,chg:null}:(S.quotes[p.id]||{});
+ const price=q.price,qc=q.cur||p.cur,fq=qc==="EUR"?1:S.fx[qc]?.r,fa=p.cur==="EUR"?1:S.fx[p.cur]?.r;
+ const value=p.qty*price*fq,cost=p.qty*p.avg*fa,pl=value-cost;
+ const day=isFinite(q.chg)&&isFinite(value)?value-value/(1+q.chg/100):NaN;
+ return{price,qc,value,cost,pl,plp:cost?pl/cost*100:NaN,day,err:q.err,ts:q.ts,manual:p.manual}}
+const rows=()=>S.pos.map(p=>({p,...calc(p)}));
+
+/* ---------- Alertas ---------- */
+function evalAlerts(){
+ S.alerts.forEach(a=>{if(a.status!=="active")return;const p=S.pos.find(x=>x.id===a.pid);if(!p)return;
+  const pr=calc(p).price;if(!isFinite(pr))return;
+  if(a.kind==="buy"?pr<=a.target:pr>=a.target){
+   a.status="triggered";a.at=Date.now();
+   const msg=`${p.name}: ${a.kind==="buy"?"compra":"venta"} — precio ${num(pr)} ${a.kind==="buy"?"≤":"≥"} objetivo ${num(a.target)}${a.note?" ("+a.note+")":""}`;
+   S.hist.unshift({t:Date.now(),msg});S.hist=S.hist.slice(0,50);banner(msg);notify(msg);beep()}})}
+function banner(m){const d=document.createElement("div");d.className="warn alertb";d.innerHTML=`<span>🔔 ${esc(m)}</span><button class="s">Cerrar</button>`;d.querySelector("button").onclick=()=>d.remove();$("#banners").prepend(d)}
+function notify(m){try{if("Notification"in window&&Notification.permission==="granted")new Notification("Alerta de cartera",{body:m})}catch(e){}}
+function beep(){if(!S.cfg.sound)return;try{const c=new AudioContext(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);g.gain.value=.08;o.frequency.value=880;o.start();o.stop(c.currentTime+.25)}catch(e){}}
+
+/* ---------- Render ---------- */
+function render(){
+ $("#last").textContent=S.last?"Última actualización: "+new Date(S.last).toLocaleString("es-ES"):"Sin actualizar todavía";
+ $("#auto").value=String(S.cfg.min||0);
+ const R=rows(),tot=R.reduce((a,r)=>a+(r.value||0),0),inv=R.reduce((a,r)=>a+(r.cost||0),0),day=R.reduce((a,r)=>a+(r.day||0),0),pl=tot-inv;
+ $("#sum").innerHTML=[["Valor total",eur(tot),""],["Invertido",eur(inv),""],["Ganancia / pérdida",eur(pl)+"<br><small>"+pct(inv?pl/inv*100:NaN)+"</small>",cls(pl)],["Variación del día",R.some(r=>isFinite(r.day))?eur(day):"—",cls(day)]]
+  .map(c=>`<div class="card"><span class="mu">${c[0]}</span><b class="n ${c[2]}">${c[1]}</b></div>`).join("");
+ const grp=f=>{const m={};R.forEach(r=>{if(r.value>0){const k=f(r);m[k]=(m[k]||0)+r.value}});return Object.entries(m).sort((a,b)=>b[1]-a[1])};
+ $("#charts").innerHTML=[["Por plataforma",grp(r=>r.p.plat)],["Por tipo",grp(r=>TIPOS[r.p.type])],["Por posición",grp(r=>r.p.name)]].map(([t,d])=>`<div class="box" style="margin:0"><h2>${t}</h2>${donut(d)}</div>`).join("");
+ const opt=(a,l)=>`<option value="">${l}</option>`+a.map(x=>`<option value="${esc(x[0])}">${esc(x[1])}</option>`).join("");
+ const plats=[...new Set(S.pos.map(p=>p.plat))].sort();
+ $("#fp").innerHTML=opt(plats.map(x=>[x,x]),"Todas las plataformas");$("#fp").value=V.fp;
+ $("#ft").innerHTML=opt(Object.entries(TIPOS),"Todos los tipos");$("#ft").value=V.ft;
+ $("#plats").innerHTML=plats.map(x=>`<option value="${esc(x)}">`).join("");
+ let L=R.filter(r=>(!V.fp||r.p.plat===V.fp)&&(!V.ft||r.p.type===V.ft));
+ const key={name:r=>r.p.name.toLowerCase(),value:r=>r.value||0,pl:r=>r.pl||0,plp:r=>r.plp||0,price:r=>r.price||0};
+ L.sort((a,b)=>(key[V.sort](a)>key[V.sort](b)?1:-1)*V.dir);
+ const th=(k,t)=>`<th data-s="${k}">${t}${V.sort===k?(V.dir>0?" ▲":" ▼"):""}</th>`;
+ $("#tbl").innerHTML=`<thead><tr>${th("name","Nombre")}<th>Tipo</th><th>Cantidad</th>${th("price","Precio")}${th("value","Valor")}${th("pl","P/L €")}${th("plp","P/L %")}<th>Estado</th><th></th></tr></thead><tbody>`+
+  L.map(r=>{const p=r.p,st=r.manual?`<span class="chip">manual</span>`:r.err?`<span class="chip dn" title="${esc(r.err)}">error</span>`:r.ts?`<span class="chip up">OK</span>`:`<span class="chip">pendiente</span>`;
+   return`<tr><td>${esc(p.name)}<div class="mu">${esc(p.plat)}${p.sym?" · "+esc(p.sym):""}</div></td><td>${TIPOS[p.type]}</td><td class="n">${num(p.qty)}</td>
+   <td class="n">${num(r.price)} ${esc(r.qc)}</td><td class="n">${eur(r.value)}</td><td class="n ${cls(r.pl)}">${eur(r.pl)}</td><td class="n ${cls(r.plp)}">${pct(r.plp)}</td><td>${st}</td>
+   <td><button class="s" data-a="alert" data-id="${p.id}">🔔</button> <button class="s" data-a="edit" data-id="${p.id}">Editar</button> <button class="s" data-a="del" data-id="${p.id}">✕</button></td></tr>`}).join("")+"</tbody>";
+ $("#empty").textContent=S.pos.length?"":"Aún no hay posiciones. Añade una o pulsa «Cargar demo».";
+ $("#alerts").innerHTML=S.alerts.length?S.alerts.map(a=>{const p=S.pos.find(x=>x.id===a.pid);
+  return`<div class="bar" style="justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--ln)"><span>${esc(p?p.name:"(borrada)")}: ${a.kind==="buy"?"compra ≤":"venta ≥"} <b class="n">${num(a.target)}</b> ${esc(a.note||"")} <span class="chip">${{active:"activa",triggered:"disparada",paused:"pausada"}[a.status]}</span></span>
+  <span>${a.status==="active"?`<button class="s" data-a="apause" data-id="${a.id}">Pausar</button>`:`<button class="s" data-a="arearm" data-id="${a.id}">Rearmar</button>`} <button class="s" data-a="adel" data-id="${a.id}">✕</button></span></div>`}).join(""):"<span class='mu'>Sin alertas. Crea una con el botón 🔔 de cada posición.</span>";
+ $("#hist").innerHTML=S.hist.length?S.hist.map(h=>`<div>${new Date(h.t).toLocaleString("es-ES")} — ${esc(h.msg)}</div>`).join(""):"Sin avisos todavía."}
+
+function donut(d){
+ const t=d.reduce((a,x)=>a+x[1],0);if(!t)return"<div class='mu'>Sin datos</div>";
+ let off=0;const C=2*Math.PI*40;
+ const arcs=d.map((x,i)=>{const l=x[1]/t*C,s=`<circle r="40" cx="60" cy="60" fill="none" stroke="${COL[i%COL.length]}" stroke-width="22" stroke-dasharray="${l} ${C-l}" stroke-dashoffset="${-off}" transform="rotate(-90 60 60)"/>`;off+=l;return s}).join("");
+ return`<svg viewBox="0 0 120 120" width="130" role="img" aria-label="Gráfico de distribución">${arcs}</svg><div class="leg">`+d.map((x,i)=>`<div><span><i style="background:${COL[i%COL.length]}"></i>${esc(x[0])}</span><span class="n">${(x[1]/t*100).toFixed(1).replace(".",",")} %</span></div>`).join("")+"</div>"}
+
+/* ---------- Acciones ---------- */
+function openPos(id){
+ editId=id;const f=$("#fpos"),p=S.pos.find(x=>x.id===id)||{type:"accion",cur:"EUR",manual:false};
+ $("#tpos").textContent=id?"Editar posición":"Nueva posición";$("#epos").textContent="";
+ ["name","sym","type","plat","qty","avg","cur","mprice","notes"].forEach(k=>f.elements[k].value=p[k]??"");f.elements.manual.checked=!!p.manual;$("#dpos").showModal()}
+$("#fpos").addEventListener("submit",e=>{
+ if(e.submitter?.value!=="ok")return;const f=e.target.elements,g=k=>f[k].value.trim();
+ const p={id:editId||uid(),name:g("name"),sym:g("sym"),type:g("type"),plat:g("plat"),qty:parseFloat(f.qty.value),avg:parseFloat(f.avg.value),cur:g("cur"),manual:f.manual.checked,mprice:parseFloat(f.mprice.value),notes:g("notes")};
+ let err="";if(!p.name||!p.plat)err="Nombre y plataforma son obligatorios.";else if(!(p.qty>=0)||!(p.avg>=0))err="Cantidad y precio medio deben ser números válidos.";
+ else if(p.manual&&!(p.mprice>=0))err="Indica el precio manual.";else if(!p.manual&&!p.sym)err="Indica el ticker o marca «Precio manual».";
+ if(p.type==="cripto"&&!p.manual)p.cur="EUR";
+ if(err){e.preventDefault();$("#epos").textContent=err;return}
+ const i=S.pos.findIndex(x=>x.id===p.id);i>=0?S.pos[i]=p:S.pos.push(p);save();render();if(!p.manual)refresh()});
+$("#fal").addEventListener("submit",e=>{
+ if(e.submitter?.value!=="ok")return;const t=parseFloat(e.target.elements.target.value);if(!(t>0)){e.preventDefault();return}
+ S.alerts.push({id:uid(),pid:alertPid,kind:e.target.elements.kind.value,target:t,note:e.target.elements.note.value.trim(),status:"active"});
+ if("Notification"in window&&Notification.permission==="default")Notification.requestPermission();
+ evalAlerts();save();render()});
+$("#fcfg").addEventListener("submit",e=>{if(e.submitter?.value!=="ok")return;S.cfg.key=e.target.elements.key.value.trim();S.cfg.sound=e.target.elements.sound.checked;save()});
+function download(name,txt,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([txt],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+function demo(){
+ if(S.pos.length&&!confirm("Se añadirán posiciones de ejemplo a las que ya tienes. ¿Continuar?"))return;
+ const d=[["Bitcoin","bitcoin","cripto","Binance",0.05,40000,"EUR",0],["Solana","solana","cripto","Binance",12,90,"EUR",0],["iShares MSCI World","IWDA","etf","Revolut",20,80,"EUR",0],["Depósito 3 %","","deposito","MyInvestor",1,5000,"EUR",5150],["Fondo indexado","","fondo","Bankinter",100,28,"EUR",31.4]];
+ d.forEach(x=>S.pos.push({id:uid(),name:x[0],sym:x[1],type:x[2],plat:x[3],qty:x[4],avg:x[5],cur:x[6],manual:x[7]>0,mprice:x[7],notes:""}));
+ S.alerts.push({id:uid(),pid:S.pos[S.pos.length-4].id,kind:"sell",target:200,note:"Objetivo de venta (demo)",status:"active"});save();render();refresh()}
+document.addEventListener("click",e=>{
+ const b=e.target.closest("[data-a],[data-s]");if(!b)return;const id=b.dataset.id;
+ if(b.dataset.s){V.dir=V.sort===b.dataset.s?-V.dir:-1;V.sort=b.dataset.s;return render()}
+ const A={refresh,addpos:()=>openPos(null),cfg(){const f=$("#fcfg").elements;f.key.value=S.cfg.key;f.sound.checked=S.cfg.sound;$("#dcfg").showModal()},
+  edit:()=>openPos(id),del(){if(confirm("¿Borrar esta posición y sus alertas?")){S.pos=S.pos.filter(p=>p.id!==id);S.alerts=S.alerts.filter(a=>a.pid!==id);delete S.quotes[id];save();render()}},
+  alert(){alertPid=id;$("#aname").textContent=S.pos.find(p=>p.id===id).name;$("#fal").reset();$("#dal").showModal()},
+  apause(){S.alerts.find(a=>a.id===id).status="paused";save();render()},arearm(){S.alerts.find(a=>a.id===id).status="active";save();render()},
+  adel(){S.alerts=S.alerts.filter(a=>a.id!==id);save();render()},
+  exp:()=>download("cartera-"+new Date().toISOString().slice(0,10)+".json",JSON.stringify(S,null,1),"application/json"),
+  imp:()=>$("#file").click(),demo,
+  csv(){const h=["Nombre","Ticker","Tipo","Plataforma","Cantidad","Precio medio","Divisa","Precio actual","Valor EUR","P/L EUR","P/L %"];
+   const q=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
+   download("posiciones.csv","\ufeff"+[h,...rows().map(r=>[r.p.name,r.p.sym,TIPOS[r.p.type],r.p.plat,r.p.qty,r.p.avg,r.p.cur,r.price,r.value,r.pl,r.plp].map(v=>q(typeof v==="number"?String(v).replace(".",","):v)))].map(x=>x.join(";")).join("\n"),"text/csv")},
+  wipe(){if(confirm("Se borrarán todas las posiciones, alertas y ajustes de este navegador. ¿Seguro?")){localStorage.removeItem(LS);location.reload()}}};
+ A[b.dataset.a]?.()});
+$("#file").onchange=async e=>{try{const d=JSON.parse(await e.target.files[0].text());if(!Array.isArray(d.pos))throw 0;
+ if(confirm("Esto reemplaza tus datos actuales. ¿Continuar?")){S={...S,...d};save();render()}}catch{toast("Archivo no válido")}e.target.value=""};
+$("#fp").onchange=e=>{V.fp=e.target.value;render()};$("#ft").onchange=e=>{V.ft=e.target.value;render()};
+$("#auto").onchange=e=>{S.cfg.min=+e.target.value;save();schedule()};
+function schedule(){clearInterval(timer);if(S.cfg.min>0)timer=setInterval(refresh,S.cfg.min*6e4)}
+
+load();render();schedule();if(S.pos.length)refresh();
+</script></body></html>
