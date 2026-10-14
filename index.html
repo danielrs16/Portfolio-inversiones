@@ -33,6 +33,23 @@ dialog::backdrop{background:#0008}
 label{display:block;font-size:13px;color:var(--mu);margin-top:8px}
 dialog input,dialog select,dialog textarea{width:100%}
 .row{display:flex;gap:8px}.row>*{flex:1}
+:root{--sh:0 1px 2px #0001,0 10px 30px #10302a14;--hg:linear-gradient(135deg,#0f5c4d,#1b8a73)}
+@media(prefers-color-scheme:dark){:root{--sh:none;--hg:linear-gradient(135deg,#124d41,#1a7a66)}}
+body{font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;padding:16px}
+.card,.box{border-radius:16px;box-shadow:var(--sh);padding:16px}
+.cards{grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.hero{grid-column:1/-1;background:var(--hg);color:#fff;border-radius:20px;padding:22px;display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;align-items:flex-end;box-shadow:var(--sh)}
+.hero>div:first-child span{opacity:.85;font-size:14px}
+.hero b{display:block;font-size:clamp(30px,7vw,44px);font-weight:700;letter-spacing:-.02em}
+.pills{display:flex;flex-wrap:wrap;gap:8px}
+.pill{display:inline-block;padding:4px 10px;border-radius:999px;font-weight:600;font-size:14px;background:#ffffff26}
+.hero .pill.g{background:#d6f5e4;color:#0b5a2b}.hero .pill.r{background:#fde0dc;color:#9c2a1d}
+.pill.s{font-size:13px;padding:2px 8px;background:var(--ac2)}
+.pill.s.g{background:#12803c22;color:var(--up)}.pill.s.r{background:#c0392b22;color:var(--dn)}
+.card b{font-size:22px}.card small{display:block;margin-top:2px}
+.prow{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--ln)}.prow:last-child{border:0}
+.wbar{height:4px;background:var(--ln);border-radius:4px;margin-top:3px;min-width:60px}.wbar i{display:block;height:100%;background:var(--ac);border-radius:4px}
+table{min-width:1020px}tbody tr:hover{background:var(--ac2)}button{border-radius:10px}
 </style></head><body>
 <header>
  <div><h1>Mi cartera</h1><div class="mu" id="last"></div></div>
@@ -45,6 +62,7 @@ dialog input,dialog select,dialog textarea{width:100%}
 <div class="warn">Las alertas solo funcionan con esta pestaña abierta. Los datos y la clave de API se guardan únicamente en este navegador.</div>
 <div id="banners"></div>
 <div class="cards" id="sum"></div>
+<div class="box"><h2>Rendimiento por plataforma</h2><div id="plat"></div></div>
 <div class="charts" id="charts"></div>
 <div class="box"><div class="bar" style="justify-content:space-between;margin-bottom:8px"><h2 style="margin:0">Posiciones</h2>
  <div class="bar"><select id="fp"></select><select id="ft"></select></div></div>
@@ -157,8 +175,12 @@ function render(){
  $("#last").textContent=S.last?"Última actualización: "+new Date(S.last).toLocaleString("es-ES"):"Sin actualizar todavía";
  $("#auto").value=String(S.cfg.min||0);
  const R=rows(),tot=R.reduce((a,r)=>a+(r.value||0),0),inv=R.reduce((a,r)=>a+(r.cost||0),0),day=R.reduce((a,r)=>a+(r.day||0),0),pl=tot-inv;
- $("#sum").innerHTML=[["Valor total",eur(tot),""],["Invertido",eur(inv),""],["Ganancia / pérdida",eur(pl)+"<br><small>"+pct(inv?pl/inv*100:NaN)+"</small>",cls(pl)],["Variación del día",R.some(r=>isFinite(r.day))?eur(day):"—",cls(day)]]
-  .map(c=>`<div class="card"><span class="mu">${c[0]}</span><b class="n ${c[2]}">${c[1]}</b></div>`).join("");
+ const plp=inv?pl/inv*100:NaN,ok=R.filter(r=>isFinite(r.plp)),best=ok.slice().sort((a,b)=>b.plp-a.plp)[0],worst=ok.slice().sort((a,b)=>a.plp-b.plp)[0],dayp=tot-day?day/(tot-day)*100:NaN,hasDay=R.some(r=>isFinite(r.day));
+ const kp=(l,v,c,s)=>`<div class="card"><span class="mu">${l}</span><b class="n ${c||""}">${v}</b>${s?`<small class="mu">${s}</small>`:""}</div>`;
+ $("#sum").innerHTML=`<div class="hero"><div><span>Valor total de la cartera</span><b class="n">${eur(tot)}</b></div><div class="pills"><span class="pill n ${pl>=0?"g":"r"}">${pl>=0?"▲":"▼"} ${eur(Math.abs(pl))} · ${pct(plp)}</span><span class="pill n">Hoy ${hasDay?eur(day)+" ("+pct(dayp)+")":"—"}</span></div></div>`+
+  kp("Invertido",eur(inv))+kp("Ganancia total",eur(pl),cls(pl))+kp("Rentabilidad",pct(plp),cls(plp))+kp("Mejor posición",best?esc(best.p.name):"—","up",best?pct(best.plp):"")+kp("Peor posición",worst?esc(worst.p.name):"—","dn",worst?pct(worst.plp):"")+kp("Posiciones",S.pos.length,"",new Set(S.pos.map(p=>p.plat)).size+" plataformas");
+ const P={};R.forEach(r=>{const o=P[r.p.plat]=P[r.p.plat]||{v:0,c:0};o.v+=r.value||0;o.c+=r.cost||0});
+ $("#plat").innerHTML=Object.entries(P).sort((a,b)=>b[1].v-a[1].v).map(([n,o])=>{const g=o.v-o.c,pp=o.c?g/o.c*100:NaN;return`<div class="prow"><div><b>${esc(n)}</b><div class="mu n">${eur(o.v)} · invertido ${eur(o.c)}</div></div><div class="n ${cls(g)}" style="text-align:right"><b>${eur(g)}</b><div>${pct(pp)}</div></div></div>`}).join("")||"<span class='mu'>Sin datos</span>";
  const grp=f=>{const m={};R.forEach(r=>{if(r.value>0){const k=f(r);m[k]=(m[k]||0)+r.value}});return Object.entries(m).sort((a,b)=>b[1]-a[1])};
  $("#charts").innerHTML=[["Por plataforma",grp(r=>r.p.plat)],["Por tipo",grp(r=>TIPOS[r.p.type])],["Por posición",grp(r=>r.p.name)]].map(([t,d])=>`<div class="box" style="margin:0"><h2>${t}</h2>${donut(d)}</div>`).join("");
  const opt=(a,l)=>`<option value="">${l}</option>`+a.map(x=>`<option value="${esc(x[0])}">${esc(x[1])}</option>`).join("");
@@ -167,13 +189,13 @@ function render(){
  $("#ft").innerHTML=opt(Object.entries(TIPOS),"Todos los tipos");$("#ft").value=V.ft;
  $("#plats").innerHTML=plats.map(x=>`<option value="${esc(x)}">`).join("");
  let L=R.filter(r=>(!V.fp||r.p.plat===V.fp)&&(!V.ft||r.p.type===V.ft));
- const key={name:r=>r.p.name.toLowerCase(),value:r=>r.value||0,pl:r=>r.pl||0,plp:r=>r.plp||0,price:r=>r.price||0};
+ const key={name:r=>r.p.name.toLowerCase(),value:r=>r.value||0,pl:r=>r.pl||0,plp:r=>r.plp||0,price:r=>r.price||0,cost:r=>r.cost||0,w:r=>r.value||0};
  L.sort((a,b)=>(key[V.sort](a)>key[V.sort](b)?1:-1)*V.dir);
  const th=(k,t)=>`<th data-s="${k}">${t}${V.sort===k?(V.dir>0?" ▲":" ▼"):""}</th>`;
- $("#tbl").innerHTML=`<thead><tr>${th("name","Nombre")}<th>Tipo</th><th>Cantidad</th>${th("price","Precio")}${th("value","Valor")}${th("pl","P/L €")}${th("plp","P/L %")}<th>Estado</th><th></th></tr></thead><tbody>`+
+ $("#tbl").innerHTML=`<thead><tr>${th("name","Nombre")}<th>Tipo</th><th>Cantidad</th>${th("price","Precio")}${th("value","Valor")}${th("cost","Invertido")}${th("pl","P/L €")}${th("plp","P/L %")}<th>Hoy</th>${th("w","Peso")}<th>Estado</th><th></th></tr></thead><tbody>`+
   L.map(r=>{const p=r.p,st=r.manual?`<span class="chip">manual</span>`:r.err?`<span class="chip dn" title="${esc(r.err)}">error</span>`:r.ts?`<span class="chip up">OK</span>`:`<span class="chip">pendiente</span>`;
    return`<tr><td>${esc(p.name)}<div class="mu">${esc(p.plat)}${p.sym?" · "+esc(p.sym):""}</div></td><td>${TIPOS[p.type]}</td><td class="n">${num(p.qty)}</td>
-   <td class="n">${num(r.price)} ${esc(r.qc)}</td><td class="n">${eur(r.value)}</td><td class="n ${cls(r.pl)}">${eur(r.pl)}</td><td class="n ${cls(r.plp)}">${pct(r.plp)}</td><td>${st}</td>
+   <td class="n">${num(r.price)} ${esc(r.qc)}</td><td class="n">${eur(r.value)}</td><td class="n">${eur(r.cost)}</td><td class="n ${cls(r.pl)}">${eur(r.pl)}</td><td><span class="pill s n ${isFinite(r.plp)?(r.plp>=0?"g":"r"):""}">${pct(r.plp)}</span></td><td class="n ${cls(r.day)}">${isFinite(r.day)?pct(r.day/(r.value-r.day)*100):"—"}</td><td class="n">${isFinite(r.value)&&tot?num(r.value/tot*100,1)+" %":"—"}<div class="wbar"><i style="width:${Math.min(100,(r.value/tot*100)||0)}%"></i></div></td><td>${st}</td>
    <td><button class="s" data-a="alert" data-id="${p.id}">🔔</button> <button class="s" data-a="edit" data-id="${p.id}">Editar</button> <button class="s" data-a="del" data-id="${p.id}">✕</button></td></tr>`}).join("")+"</tbody>";
  $("#empty").textContent=S.pos.length?"":"Aún no hay posiciones. Añade una o pulsa «Cargar demo».";
  $("#alerts").innerHTML=S.alerts.length?S.alerts.map(a=>{const p=S.pos.find(x=>x.id===a.pid);
