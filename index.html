@@ -118,7 +118,9 @@ const PROV={
 const provOf=p=>p.manual?null:p.type==="cripto"?"cripto":"bolsa";
 async function fxRate(cur){ // Frankfurter, caché 6 h
  if(cur==="EUR")return 1;const c=S.fx[cur];if(c&&Date.now()-c.ts<216e5)return c.r;
- const d=await getJSON(`https://api.frankfurter.app/latest?from=${cur}&to=EUR`);S.fx[cur]={r:d.rates.EUR,ts:Date.now()};return d.rates.EUR}
+ const U=[`https://api.frankfurter.dev/v1/latest?base=${cur}&symbols=EUR`,`https://api.frankfurter.app/latest?from=${cur}&to=EUR`,`https://open.er-api.com/v6/latest/${cur}`];
+ for(const u of U){try{const d=await getJSON(u),r=d.rates&&d.rates.EUR;if(r>0){S.fx[cur]={r,ts:Date.now()};return r}}catch(e){}}
+ if(c)return c.r;throw new Error("Sin tipo de cambio")}
 
 async function refresh(){
  if(busy)return;busy=true;$("#bref").textContent="Actualizando…";
